@@ -1,8 +1,9 @@
 """Entry point for generating the daily stock statistics report."""
 from __future__ import annotations
 
+import argparse
 import logging
-from typing import List
+from typing import List, Sequence
 
 from .config import load_config
 from .data_provider import DataProvider
@@ -18,11 +19,36 @@ def configure_logging() -> None:
     )
 
 
-def run() -> None:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments for selecting output targets."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--console",
+        action="store_true",
+        help="Print the generated report to the console.",
+    )
+    parser.add_argument(
+        "--telegram",
+        action="store_true",
+        help="Send the generated report via Telegram.",
+    )
+    return parser.parse_args(argv)
+
+
+def run(argv: Sequence[str] | None = None) -> None:
     configure_logging()
+    args = parse_args(argv)
+
+    targets_specified = args.console or args.telegram
+    send_to_console = args.console or not targets_specified
+    send_to_telegram = args.telegram or not targets_specified
+
     config = load_config()
     data_provider = DataProvider()
-    telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
+    telegram: TelegramClient | None = None
+    if send_to_telegram:
+        telegram = TelegramClient(config.telegram_bot_token, config.telegram_chat_id)
 
     results: List[dict] = []
 
@@ -40,11 +66,13 @@ def run() -> None:
         return
 
     table = format_table(results)
-    print(table)
+    if send_to_console:
+        print(table)
 
-    messages = format_detailed_messages(results)
-    for message in messages:
-        telegram.send_message(message)
+    if send_to_telegram and telegram is not None:
+        messages = format_detailed_messages(results)
+        for message in messages:
+            telegram.send_message(message)
 
 
 if __name__ == "__main__":
