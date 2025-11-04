@@ -45,7 +45,13 @@ class DataProvider:
             logging.error(msg)
             raise ValueError(msg)
 
-        history = history.tail(self.days)
+        # We need at least ``self.days`` worth of history plus an additional data
+        # point to compare against when computing percentage changes (e.g. the
+        # 30-day change looks at the price 30 trading days ago).  Fetching one
+        # extra day ensures downstream indicators have enough data to operate
+        # without raising "not enough data" warnings while still keeping the
+        # dataset focused on the requested window.
+        history = history.tail(self.days + 1)
         history = history.sort_index()
         history = history.loc[:, [col for col in history.columns if col in {"Open", "High", "Low", "Close", "Volume"}]]
 
