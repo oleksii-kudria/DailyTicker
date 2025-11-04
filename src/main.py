@@ -6,7 +6,7 @@ from typing import List
 
 from .config import load_config
 from .data_provider import DataProvider
-from .formatter import format_summary, format_table
+from .formatter import format_detailed_messages, format_table
 from .indicators import summarize_metrics
 from .telegram_client import TelegramClient
 
@@ -42,8 +42,9 @@ def run() -> None:
     table = format_table(results)
     print(table)
 
-    summary = format_summary(results)
-    telegram.send_message(summary)
+    messages = format_detailed_messages(results)
+    for message in messages:
+        telegram.send_message(message)
 
 
 if __name__ == "__main__":

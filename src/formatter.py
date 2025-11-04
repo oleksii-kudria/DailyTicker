@@ -44,13 +44,62 @@ def format_table(rows: Iterable[Dict[str, Any]]) -> str:
     return "\n".join([header, separator, *body_lines]) if body_lines else header
 
 
-def format_summary(rows: Iterable[Dict[str, Any]]) -> str:
-    """Create a short textual summary for Telegram."""
+def _format_percent_change(value: Any) -> str:
+    if value is None:
+        return "N/A"
 
-    lines = ["Daily Stock Summary"]
+    try:
+        change = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+
+    emoji = ""
+    if change >= 10:
+        emoji = "🚀"
+    elif change >= 5:
+        emoji = "🔼"
+    elif change <= -10:
+        emoji = "💥"
+    elif change <= -5:
+        emoji = "🔽"
+
+    return f"{change:+.2f}% {emoji}".rstrip()
+
+
+def _format_rsi(value: Any) -> str:
+    if value is None:
+        return "N/A"
+
+    try:
+        rsi = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+
+    if rsi >= 70:
+        return f"{rsi:.2f} 🔴 (High)"
+    if rsi <= 30:
+        return f"{rsi:.2f} 🔵 (Low)"
+    return f"{rsi:.2f} 🟢"
+
+
+def format_detailed_messages(rows: Iterable[Dict[str, Any]]) -> List[str]:
+    """Create detailed per-ticker messages for Telegram delivery."""
+
+    messages: List[str] = []
     for row in rows:
-        price = _format_value(row.get("Price"))
-        rating = row.get("Rating") or "N/A"
-        target_delta = _format_value(row.get("Target Δ%"))
-        lines.append(f"{row.get('Ticker')}: Price {price}, Rating {rating}, Target Δ% {target_delta}")
-    return "\n".join(lines)
+        ticker = row.get("Ticker", "Unknown")
+
+        lines = [f"📈 {ticker}"]
+        lines.append(f"• Price: {_format_value(row.get('Price'))}")
+        lines.append(f"• RSI14: {_format_rsi(row.get('RSI14'))}")
+        lines.append(f"• Δ10d%: {_format_percent_change(row.get('Δ10d%'))}")
+        lines.append(f"• Δ30d%: {_format_percent_change(row.get('Δ30d%'))}")
+        lines.append(f"• Min30d: {_format_value(row.get('Min30d'))}")
+        lines.append(f"• Max30d: {_format_value(row.get('Max30d'))}")
+        lines.append(f"• Rating: {_format_value(row.get('Rating'))}")
+        lines.append(f"• Target: {_format_value(row.get('Target'))}")
+        lines.append(f"• Target Δ%: {_format_percent_change(row.get('Target Δ%'))}")
+
+        messages.append("\n".join(lines))
+
+    return messages
